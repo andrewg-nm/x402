@@ -151,7 +151,6 @@ class ExactHypercoreScheme:
             Enhanced payment requirements with extra metadata.
         """
         extra = requirements.extra or {}
-        extra["signatureChainId"] = 999
         extra["isMainnet"] = str(supported_kind.network) == "hypercore:mainnet"
         requirements.extra = extra
 

@@ -38,18 +38,12 @@ class ExactHypercoreScheme:
         if not config:
             raise ValueError(f"Unsupported network: {network}")
 
-        extra = requirements.extra or {}
-        is_mainnet = extra.get("isMainnet", True)
-        hyperliquid_chain = "Mainnet" if is_mainnet else "Testnet"
-
         amount_int = int(requirements.amount)
         decimals = config["default_asset"]["decimals"]
         amount_usd = f"{(amount_int / (10**decimals)):.{decimals}f}"
 
         action = {
             "type": "sendAsset",
-            "hyperliquidChain": hyperliquid_chain,
-            "signatureChainId": "0x66eee",
             "destination": requirements.pay_to.lower(),
             "sourceDex": "spot",
             "destinationDex": "spot",

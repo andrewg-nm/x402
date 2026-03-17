@@ -90,7 +90,7 @@ class ExactHypercoreScheme:
         """
         return []
 
-    def verify(self, payload: PaymentPayload, requirements: PaymentRequirements) -> VerifyResponse:
+    def verify(self, payload: PaymentPayload, requirements: PaymentRequirements, context=None) -> VerifyResponse:
         """Verify a Hypercore payment payload.
 
         Args:
@@ -213,7 +213,7 @@ class ExactHypercoreScheme:
             print(f"Failed to recover payer: {e}")
             return "0x0000000000000000000000000000000000000000"
 
-    def settle(self, payload: PaymentPayload, requirements: PaymentRequirements) -> SettleResponse:
+    def settle(self, payload: PaymentPayload, requirements: PaymentRequirements, context=None) -> SettleResponse:
         """Settle a Hypercore payment by submitting to Hyperliquid API.
 
         Args:
@@ -253,18 +253,20 @@ class ExactHypercoreScheme:
             )
 
             if response.status_code != 200:
+                print(f"[Hypercore] Settlement HTTP error {response.status_code}: {response.text}")
                 return SettleResponse(
                     success=False,
-                    error_reason=ERR_SETTLEMENT_FAILED,
+                    error_reason=f"{ERR_SETTLEMENT_FAILED}: HTTP {response.status_code} - {response.text}",
                     transaction="",
                     network=network,
                 )
 
             result = response.json()
             if result.get("status") != "ok":
+                print(f"[Hypercore] Settlement API error: {result}")
                 return SettleResponse(
                     success=False,
-                    error_reason=ERR_SETTLEMENT_FAILED,
+                    error_reason=f"{ERR_SETTLEMENT_FAILED}: {result}",
                     transaction="",
                     network=network,
                 )
