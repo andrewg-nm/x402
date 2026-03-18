@@ -34,7 +34,7 @@ def register_exact_hypercore_client(
     Registers:
     - hypercore:mainnet
     - hypercore:testnet
-    - hypercore:* (wildcard)
+    - hyperliquid:* (wildcard)
 
     Args:
         client: x402Client instance.
@@ -54,7 +54,7 @@ def register_exact_hypercore_client(
         for network in networks:
             client.register(network, scheme)  # type: ignore[arg-type]
     else:
-        client.register("hypercore:*", scheme)  # type: ignore[arg-type]
+        client.register("hyperliquid:*", scheme)  # type: ignore[arg-type]
         client.register(NETWORK_MAINNET, scheme)  # type: ignore[arg-type]
         client.register(NETWORK_TESTNET, scheme)  # type: ignore[arg-type]
 
@@ -87,7 +87,7 @@ def register_exact_hypercore_server(
         for network in networks:
             server.register(network, scheme)  # type: ignore[arg-type]
     else:
-        server.register("hypercore:*", scheme)  # type: ignore[arg-type]
+        server.register("hyperliquid:*", scheme)  # type: ignore[arg-type]
         server.register(NETWORK_MAINNET, scheme)  # type: ignore[arg-type]
         server.register(NETWORK_TESTNET, scheme)  # type: ignore[arg-type]
 

@@ -4,6 +4,7 @@ from x402.mechanisms.hypercore import (
     ERR_DESTINATION_MISMATCH,
     ERR_INSUFFICIENT_AMOUNT,
     ERR_INVALID_ACTION_TYPE,
+    ERR_INVALID_DEX,
     ERR_INVALID_NETWORK,
     ERR_INVALID_SIGNATURE,
     ERR_NONCE_TOO_OLD,
@@ -37,8 +38,8 @@ class TestPackageImports:
         """Should import all constants from package."""
 
         assert SCHEME_EXACT == "exact"
-        assert NETWORK_MAINNET == "hypercore:mainnet"
-        assert NETWORK_TESTNET == "hypercore:testnet"
+        assert NETWORK_MAINNET == "hyperliquid:mainnet"
+        assert NETWORK_TESTNET == "hyperliquid:testnet"
         assert MAX_NONCE_AGE_SECONDS == 3600
         assert HYPERLIQUID_API_MAINNET == "https://api.hyperliquid.xyz"
         assert HYPERLIQUID_API_TESTNET == "https://api.hyperliquid-testnet.xyz"
@@ -66,13 +67,14 @@ class TestPackageImports:
     def test_should_import_error_constants(self):
         """Should import all error constants."""
         assert ERR_INVALID_NETWORK == "invalid_network"
-        assert ERR_INVALID_ACTION_TYPE == "invalid_action_type"
-        assert ERR_DESTINATION_MISMATCH == "destination_mismatch"
-        assert ERR_INSUFFICIENT_AMOUNT == "insufficient_amount"
-        assert ERR_TOKEN_MISMATCH == "token_mismatch"
-        assert ERR_NONCE_TOO_OLD == "nonce_too_old"
-        assert ERR_INVALID_SIGNATURE == "invalid_signature_structure"
-        assert ERR_SETTLEMENT_FAILED == "settlement_failed"
+        assert ERR_INVALID_ACTION_TYPE == "invalid_exact_hyperliquid_payload_action_type"
+        assert ERR_DESTINATION_MISMATCH == "invalid_exact_hyperliquid_payload_recipient_mismatch"
+        assert ERR_INSUFFICIENT_AMOUNT == "invalid_exact_hyperliquid_payload_amount"
+        assert ERR_TOKEN_MISMATCH == "invalid_exact_hyperliquid_payload_token_mismatch"
+        assert ERR_NONCE_TOO_OLD == "invalid_exact_hyperliquid_payload_nonce"
+        assert ERR_INVALID_SIGNATURE == "invalid_exact_hyperliquid_payload_signature_structure"
+        assert ERR_SETTLEMENT_FAILED == "invalid_transaction_state"
+        assert ERR_INVALID_DEX == "invalid_exact_hyperliquid_payload_dex"
 
 
 class TestExactPackageImports:
@@ -118,5 +120,5 @@ class TestExactPackageImports:
         scheme = ExactHypercoreFacilitatorScheme("https://api.hyperliquid.xyz")
 
         assert scheme.scheme == "exact"
-        assert scheme.caip_family == "hypercore:*"
+        assert scheme.caip_family == "hyperliquid:*"
         assert scheme.api_url == "https://api.hyperliquid.xyz"

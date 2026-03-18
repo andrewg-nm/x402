@@ -1,4 +1,4 @@
-"""Exact scheme server implementation for Hypercore L1."""
+"""Exact scheme server implementation for Hyperliquid."""
 
 import re
 from collections.abc import Callable
@@ -17,7 +17,7 @@ MoneyParser = Callable[[float, str], AssetAmount | None]
 
 
 class ExactHypercoreScheme:
-    """Server scheme for Hypercore L1 exact payments."""
+    """Server scheme for Hyperliquid exact payments."""
 
     def __init__(self):
         """Initialize server scheme."""
@@ -151,7 +151,7 @@ class ExactHypercoreScheme:
             Enhanced payment requirements with extra metadata.
         """
         extra = requirements.extra or {}
-        extra["isMainnet"] = str(supported_kind.network) == "hypercore:mainnet"
+        extra["isMainnet"] = str(supported_kind.network) == "hyperliquid:mainnet"
         requirements.extra = extra
 
         return requirements

@@ -163,8 +163,28 @@ class TestCreatePaymentPayload:
 
         action = result["action"]
         assert action["type"] == "sendAsset"
-        assert action["signatureChainId"] == "0x66eee"
+        assert action["hyperliquidChain"] == "Mainnet"
         assert action["sourceDex"] == "spot"
         assert action["destinationDex"] == "spot"
         assert action["fromSubAccount"] == ""
         assert "nonce" in action
+
+    def test_should_read_destination_dex_from_extra(self):
+        """Should read destinationDex from requirements.extra."""
+        signer = MockSigner()
+        client = ExactHypercoreClientScheme(signer)
+
+        result = client.create_payment_payload(
+            make_requirements(extra={"destinationDex": "perp"})
+        )
+
+        assert result["action"]["destinationDex"] == "perp"
+
+    def test_should_default_destination_dex_to_spot(self):
+        """Should default destinationDex to 'spot' when not in extra."""
+        signer = MockSigner()
+        client = ExactHypercoreClientScheme(signer)
+
+        result = client.create_payment_payload(make_requirements())
+
+        assert result["action"]["destinationDex"] == "spot"

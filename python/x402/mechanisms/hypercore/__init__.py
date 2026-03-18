@@ -1,9 +1,10 @@
-"""Hypercore L1 payment mechanism for x402."""
+"""Hyperliquid payment mechanism for x402."""
 
 from .constants import (
     ERR_DESTINATION_MISMATCH,
     ERR_INSUFFICIENT_AMOUNT,
     ERR_INVALID_ACTION_TYPE,
+    ERR_INVALID_DEX,
     ERR_INVALID_NETWORK,
     ERR_INVALID_SIGNATURE,
     ERR_NONCE_TOO_OLD,
@@ -44,4 +45,5 @@ __all__ = [
     "ERR_NONCE_TOO_OLD",
     "ERR_INVALID_SIGNATURE",
     "ERR_SETTLEMENT_FAILED",
+    "ERR_INVALID_DEX",
 ]

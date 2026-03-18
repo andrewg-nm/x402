@@ -1,4 +1,4 @@
-"""Exact scheme facilitator implementation for Hypercore L1."""
+"""Exact scheme facilitator implementation for Hyperliquid."""
 
 import time
 from typing import Any
@@ -19,6 +19,7 @@ from ..constants import (
     ERR_DESTINATION_MISMATCH,
     ERR_INSUFFICIENT_AMOUNT,
     ERR_INVALID_ACTION_TYPE,
+    ERR_INVALID_DEX,
     ERR_INVALID_NETWORK,
     ERR_INVALID_SIGNATURE,
     ERR_NONCE_TOO_OLD,
@@ -33,9 +34,11 @@ from ..constants import (
     TX_HASH_RETRY_DELAY,
 )
 
+VALID_DEX_VALUES = {"spot", "perp"}
+
 
 class ExactHypercoreScheme:
-    """Facilitator scheme for Hypercore L1 exact payments."""
+    """Facilitator scheme for Hyperliquid exact payments."""
 
     def __init__(self, api_url: str | None = None):
         """Initialize facilitator scheme.
@@ -46,7 +49,7 @@ class ExactHypercoreScheme:
         """
         self.api_url = api_url
         self.scheme = SCHEME_EXACT
-        self.caip_family = "hypercore:*"
+        self.caip_family = "hyperliquid:*"
 
     def _get_api_url(self, network: str) -> str:
         """Get the API URL for a specific network.
@@ -55,7 +58,7 @@ class ExactHypercoreScheme:
         configured override if provided.
 
         Args:
-            network: Network identifier (e.g. hypercore:mainnet, hypercore:testnet).
+            network: Network identifier (e.g. hyperliquid:mainnet, hyperliquid:testnet).
 
         Returns:
             API URL for the network.
@@ -69,18 +72,18 @@ class ExactHypercoreScheme:
         return url
 
     def get_extra(self, network: Network) -> dict[str, Any] | None:
-        """Get extra facilitator metadata (none for Hypercore).
+        """Get extra facilitator metadata (none for Hyperliquid).
 
         Args:
             network: Network identifier.
 
         Returns:
-            None (stateless facilitator).
+            None.
         """
         return None
 
     def get_signers(self, network: str) -> list[str]:
-        """Get facilitator signers (none for stateless facilitator).
+        """Get facilitator signers (none needed).
 
         Args:
             network: Network identifier.
@@ -90,8 +93,10 @@ class ExactHypercoreScheme:
         """
         return []
 
-    def verify(self, payload: PaymentPayload, requirements: PaymentRequirements, context=None) -> VerifyResponse:
-        """Verify a Hypercore payment payload.
+    def verify(
+        self, payload: PaymentPayload, requirements: PaymentRequirements, context=None
+    ) -> VerifyResponse:
+        """Verify a Hyperliquid payment payload.
 
         Args:
             payload: Payment payload with signed SendAsset action.
@@ -103,7 +108,7 @@ class ExactHypercoreScheme:
         hypercore_payload = payload.payload
 
         network = str(requirements.network)
-        if not network.startswith("hypercore:"):
+        if not network.startswith("hyperliquid:"):
             return VerifyResponse(
                 is_valid=False,
                 invalid_reason=f"{ERR_INVALID_NETWORK}: {network}",
@@ -116,26 +121,28 @@ class ExactHypercoreScheme:
                 invalid_reason=f"{ERR_INVALID_NETWORK}: {network}",
             )
 
-        if hypercore_payload["action"]["type"] != "sendAsset":
+        action = hypercore_payload["action"]
+
+        if action["type"] != "sendAsset":
             return VerifyResponse(
                 is_valid=False,
-                invalid_reason=f"{ERR_INVALID_ACTION_TYPE}: {hypercore_payload['action']['type']}",
+                invalid_reason=f"{ERR_INVALID_ACTION_TYPE}: {action['type']}",
             )
 
         pay_to = str(requirements.pay_to)
-        if hypercore_payload["action"]["destination"].lower() != pay_to.lower():
+        if action["destination"].lower() != pay_to.lower():
             return VerifyResponse(is_valid=False, invalid_reason=ERR_DESTINATION_MISMATCH)
 
+        # Amount validation using string arithmetic only (no floating-point)
         decimals = config["default_asset"]["decimals"]
-        payload_amount = float(hypercore_payload["action"]["amount"])
-        payload_amount_int = int(payload_amount * (10**decimals))
         required_amount = int(requirements.amount)
+        expected_amount_str = _int_to_decimal_string(required_amount, decimals)
 
-        if payload_amount_int < required_amount:
+        if action["amount"] != expected_amount_str:
             return VerifyResponse(is_valid=False, invalid_reason=ERR_INSUFFICIENT_AMOUNT)
 
         asset = requirements.asset if hasattr(requirements, "asset") else None
-        if asset and hypercore_payload["action"]["token"] != asset:
+        if asset and action["token"] != asset:
             return VerifyResponse(is_valid=False, invalid_reason=ERR_TOKEN_MISMATCH)
 
         now_ms = int(time.time() * 1000)
@@ -148,10 +155,48 @@ class ExactHypercoreScheme:
         if not sig.get("r") or not sig.get("s") or "v" not in sig:
             return VerifyResponse(is_valid=False, invalid_reason=ERR_INVALID_SIGNATURE)
 
+        # DEX validation
+        source_dex = action.get("sourceDex", "")
+        dest_dex = action.get("destinationDex", "")
+
+        if source_dex not in VALID_DEX_VALUES:
+            return VerifyResponse(
+                is_valid=False,
+                invalid_reason=f"{ERR_INVALID_DEX}: invalid sourceDex '{source_dex}'",
+            )
+
+        extra = requirements.extra or {}
+        expected_dest_dex = extra.get("destinationDex", "spot")
+        if dest_dex != expected_dest_dex:
+            return VerifyResponse(
+                is_valid=False,
+                invalid_reason=f"{ERR_INVALID_DEX}: destinationDex '{dest_dex}' does not match required '{expected_dest_dex}'",
+            )
+
+        # Perp DEX requires USDC-equivalent token
+        if source_dex == "perp" or dest_dex == "perp":
+            token_name = action.get("token", "").split(":")[0].upper()
+            if token_name not in ("USDC", "USDH"):
+                return VerifyResponse(
+                    is_valid=False,
+                    invalid_reason=f"{ERR_INVALID_DEX}: perp DEX requires USDC-equivalent token, got '{action.get('token', '')}'",
+                )
+
+        # fromSubAccount must be empty
+        if action.get("fromSubAccount", "") != "":
+            return VerifyResponse(
+                is_valid=False,
+                invalid_reason=f"{ERR_INVALID_ACTION_TYPE}: fromSubAccount must be empty",
+            )
+
         return VerifyResponse(is_valid=True)
 
     def _recover_payer(self, action: dict[str, Any], signature: dict[str, Any]) -> str:
         """Recover payer address from EIP-712 signature.
+
+        The Hyperliquid SDK signs with chainId in the EIP-712 domain
+        (read from action.signatureChainId). We must match that domain
+        exactly to recover the correct signer address.
 
         Args:
             action: SendAsset action that was signed.
@@ -161,14 +206,24 @@ class ExactHypercoreScheme:
             Ethereum address of payer.
         """
         try:
+            # Build domain — include chainId if signatureChainId is present
+            # (the Hyperliquid SDK always includes it)
+            domain_types = [
+                {"name": "name", "type": "string"},
+                {"name": "version", "type": "string"},
+                {"name": "chainId", "type": "uint256"},
+                {"name": "verifyingContract", "type": "address"},
+            ]
+            domain = {
+                "name": "HyperliquidSignTransaction",
+                "version": "1",
+                "chainId": int(action["signatureChainId"], 16),
+                "verifyingContract": "0x0000000000000000000000000000000000000000",
+            }
+
             typed_data = {
                 "types": {
-                    "EIP712Domain": [
-                        {"name": "name", "type": "string"},
-                        {"name": "version", "type": "string"},
-                        {"name": "chainId", "type": "uint256"},
-                        {"name": "verifyingContract", "type": "address"},
-                    ],
+                    "EIP712Domain": domain_types,
                     "HyperliquidTransaction:SendAsset": [
                         {"name": "hyperliquidChain", "type": "string"},
                         {"name": "destination", "type": "string"},
@@ -181,12 +236,7 @@ class ExactHypercoreScheme:
                     ],
                 },
                 "primaryType": "HyperliquidTransaction:SendAsset",
-                "domain": {
-                    "name": "HyperliquidSignTransaction",
-                    "version": "1",
-                    "chainId": int(action["signatureChainId"], 16),
-                    "verifyingContract": "0x0000000000000000000000000000000000000000",
-                },
+                "domain": domain,
                 "message": {
                     "hyperliquidChain": action["hyperliquidChain"],
                     "destination": action["destination"],
@@ -213,8 +263,10 @@ class ExactHypercoreScheme:
             print(f"Failed to recover payer: {e}")
             return "0x0000000000000000000000000000000000000000"
 
-    def settle(self, payload: PaymentPayload, requirements: PaymentRequirements, context=None) -> SettleResponse:
-        """Settle a Hypercore payment by submitting to Hyperliquid API.
+    def settle(
+        self, payload: PaymentPayload, requirements: PaymentRequirements, context=None
+    ) -> SettleResponse:
+        """Settle a Hyperliquid payment by submitting to Hyperliquid API.
 
         Args:
             payload: Verified payment payload.
@@ -253,7 +305,9 @@ class ExactHypercoreScheme:
             )
 
             if response.status_code != 200:
-                print(f"[Hypercore] Settlement HTTP error {response.status_code}: {response.text}")
+                print(
+                    f"[Hyperliquid] Settlement HTTP error {response.status_code}: {response.text}"
+                )
                 return SettleResponse(
                     success=False,
                     error_reason=f"{ERR_SETTLEMENT_FAILED}: HTTP {response.status_code} - {response.text}",
@@ -263,7 +317,7 @@ class ExactHypercoreScheme:
 
             result = response.json()
             if result.get("status") != "ok":
-                print(f"[Hypercore] Settlement API error: {result}")
+                print(f"[Hyperliquid] Settlement API error: {result}")
                 return SettleResponse(
                     success=False,
                     error_reason=f"{ERR_SETTLEMENT_FAILED}: {result}",
@@ -279,6 +333,14 @@ class ExactHypercoreScheme:
             start_time,
         )
 
+        if tx_hash is None:
+            return SettleResponse(
+                success=False,
+                error_reason=f"{ERR_SETTLEMENT_FAILED}: transaction hash not found after {TX_HASH_MAX_RETRIES} attempts",
+                transaction="",
+                network=network,
+            )
+
         return SettleResponse(
             success=True,
             transaction=tx_hash,
@@ -288,7 +350,7 @@ class ExactHypercoreScheme:
 
     def _get_transaction_hash(
         self, api_url: str, user: str, destination: str, nonce: int, start_time: float
-    ) -> str:
+    ) -> str | None:
         """Query Hyperliquid ledger for transaction hash.
 
         Args:
@@ -299,10 +361,7 @@ class ExactHypercoreScheme:
             start_time: Time when settlement was initiated.
 
         Returns:
-            Transaction hash from Hyperliquid ledger.
-
-        Raises:
-            Exception: If transaction not found after max retries.
+            Transaction hash from Hyperliquid ledger, or None if not found.
         """
         with httpx.Client() as client:
             for attempt in range(TX_HASH_MAX_RETRIES):
@@ -332,4 +391,24 @@ class ExactHypercoreScheme:
                     ):
                         return update["hash"]
 
-        raise Exception(f"Transaction hash not found after {TX_HASH_MAX_RETRIES} attempts")
+        return None
+
+
+def _int_to_decimal_string(amount: int, decimals: int) -> str:
+    """Convert an integer amount to a decimal string with exact precision.
+
+    Uses string operations only — no floating-point arithmetic.
+
+    Args:
+        amount: Integer amount in raw units.
+        decimals: Number of decimal places.
+
+    Returns:
+        Decimal string (e.g., 1000000 with 8 decimals → "0.01000000").
+    """
+    amount_str = str(amount)
+    if len(amount_str) <= decimals:
+        amount_str = amount_str.zfill(decimals + 1)
+    integer_part = amount_str[:-decimals]
+    fractional_part = amount_str[-decimals:]
+    return f"{integer_part}.{fractional_part}"

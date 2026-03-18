@@ -1,4 +1,4 @@
-"""Exact scheme client implementation for Hypercore L1."""
+"""Exact scheme client implementation for Hyperliquid."""
 
 import time
 from typing import Any
@@ -9,9 +9,14 @@ from x402.schemas import (
 
 from ..constants import NETWORK_CONFIGS, SCHEME_EXACT
 
+CHAIN_NAME_MAP = {
+    "hyperliquid:mainnet": "Mainnet",
+    "hyperliquid:testnet": "Testnet",
+}
+
 
 class ExactHypercoreScheme:
-    """Client scheme for Hypercore L1 exact payments."""
+    """Client scheme for Hyperliquid exact payments."""
 
     def __init__(self, signer: Any):
         """Initialize client with a Hyperliquid signer.
@@ -23,7 +28,7 @@ class ExactHypercoreScheme:
         self.scheme = SCHEME_EXACT
 
     def create_payment_payload(self, requirements: PaymentRequirements) -> dict[str, Any]:
-        """Create a payment payload for Hypercore L1.
+        """Create a payment payload for Hyperliquid.
 
         Args:
             requirements: Payment requirements from server.
@@ -38,17 +43,26 @@ class ExactHypercoreScheme:
         if not config:
             raise ValueError(f"Unsupported network: {network}")
 
+        chain_name = CHAIN_NAME_MAP.get(network)
+        if not chain_name:
+            raise ValueError(f"Unknown chain name for network: {network}")
+
+        # Amount conversion using string arithmetic only (no floating-point)
         amount_int = int(requirements.amount)
         decimals = config["default_asset"]["decimals"]
-        amount_usd = f"{(amount_int / (10**decimals)):.{decimals}f}"
+        amount_str = _int_to_decimal_string(amount_int, decimals)
+
+        extra = requirements.extra or {}
+        destination_dex = extra.get("destinationDex", "spot")
 
         action = {
             "type": "sendAsset",
+            "hyperliquidChain": chain_name,
             "destination": requirements.pay_to.lower(),
             "sourceDex": "spot",
-            "destinationDex": "spot",
+            "destinationDex": destination_dex,
             "token": requirements.asset,
-            "amount": amount_usd,
+            "amount": amount_str,
             "fromSubAccount": "",
             "nonce": nonce,
         }
@@ -60,3 +74,23 @@ class ExactHypercoreScheme:
             "signature": signature,
             "nonce": nonce,
         }
+
+
+def _int_to_decimal_string(amount: int, decimals: int) -> str:
+    """Convert an integer amount to a decimal string with exact precision.
+
+    Uses string operations only — no floating-point arithmetic.
+
+    Args:
+        amount: Integer amount in raw units.
+        decimals: Number of decimal places.
+
+    Returns:
+        Decimal string (e.g., 1000000 with 8 decimals → "0.01000000").
+    """
+    amount_str = str(amount)
+    if len(amount_str) <= decimals:
+        amount_str = amount_str.zfill(decimals + 1)
+    integer_part = amount_str[:-decimals]
+    fractional_part = amount_str[-decimals:]
+    return f"{integer_part}.{fractional_part}"

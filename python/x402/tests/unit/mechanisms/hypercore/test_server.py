@@ -69,8 +69,8 @@ class TestParsePrice:
 class TestEnhancePaymentRequirements:
     """Test enhance_payment_requirements method."""
 
-    def test_should_add_signature_chain_id(self):
-        """Should add signatureChainId to extra."""
+    def test_should_add_is_mainnet_flag(self):
+        """Should add isMainnet to extra."""
         server = ExactHypercoreServerScheme()
 
         requirements = PaymentRequirements(
@@ -90,7 +90,6 @@ class TestEnhancePaymentRequirements:
 
         result = server.enhance_payment_requirements(requirements, supported_kind, [])
 
-        assert result.extra["signatureChainId"] == 999
         assert result.extra["isMainnet"] is True
 
     def test_should_detect_testnet(self):
@@ -99,7 +98,7 @@ class TestEnhancePaymentRequirements:
 
         requirements = PaymentRequirements(
             scheme="exact",
-            network="hypercore:testnet",
+            network="hyperliquid:testnet",
             amount="100000",
             asset="USDH:0x54e00a5988577cb0b0c9ab0cb6ef7f4b",
             pay_to="0x0987654321098765432109876543210987654321",
@@ -109,12 +108,11 @@ class TestEnhancePaymentRequirements:
         supported_kind = SupportedKind(
             x402_version=2,
             scheme="exact",
-            network="hypercore:testnet",
+            network="hyperliquid:testnet",
         )
 
         result = server.enhance_payment_requirements(requirements, supported_kind, [])
 
-        assert result.extra["signatureChainId"] == 999
         assert result.extra["isMainnet"] is False
 
     def test_should_preserve_existing_extra(self):
@@ -140,5 +138,4 @@ class TestEnhancePaymentRequirements:
         result = server.enhance_payment_requirements(requirements, supported_kind, [])
 
         assert result.extra["customField"] == "customValue"
-        assert result.extra["signatureChainId"] == 999
         assert result.extra["isMainnet"] is True
