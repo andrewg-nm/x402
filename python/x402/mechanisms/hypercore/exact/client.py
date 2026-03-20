@@ -7,7 +7,7 @@ from x402.schemas import (
     PaymentRequirements,
 )
 
-from ..constants import NETWORK_CONFIGS, SCHEME_EXACT
+from ..constants import NETWORK_CONFIGS, NETWORK_SIGNATURE_CHAIN_IDS, SCHEME_EXACT
 
 CHAIN_NAME_MAP = {
     "hyperliquid:mainnet": "Mainnet",
@@ -55,9 +55,14 @@ class ExactHypercoreScheme:
         extra = requirements.extra or {}
         destination_dex = extra.get("destinationDex", "spot")
 
+        signature_chain_id = NETWORK_SIGNATURE_CHAIN_IDS.get(network)
+        if not signature_chain_id:
+            raise ValueError(f"No signatureChainId for network: {network}")
+
         action = {
             "type": "sendAsset",
             "hyperliquidChain": chain_name,
+            "signatureChainId": signature_chain_id,
             "destination": requirements.pay_to.lower(),
             "sourceDex": "spot",
             "destinationDex": destination_dex,

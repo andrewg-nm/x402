@@ -46,6 +46,16 @@ NETWORK_API_URLS: dict[str, str] = {
     NETWORK_TESTNET: HYPERLIQUID_API_TESTNET,
 }
 
+# EIP-712 signature chain IDs — arbitrary but required by the Hyperliquid API.
+# HyperCore is not an EVM chain; these correspond to HyperEVM chain IDs by convention.
+SIGNATURE_CHAIN_ID_MAINNET = "0x3e7"  # 999
+SIGNATURE_CHAIN_ID_TESTNET = "0x3e6"  # 998
+
+NETWORK_SIGNATURE_CHAIN_IDS: dict[str, str] = {
+    NETWORK_MAINNET: SIGNATURE_CHAIN_ID_MAINNET,
+    NETWORK_TESTNET: SIGNATURE_CHAIN_ID_TESTNET,
+}
+
 MAX_NONCE_AGE_SECONDS = 3600
 TX_HASH_MAX_RETRIES = 2
 TX_HASH_RETRY_DELAY = 0.5

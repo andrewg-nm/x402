@@ -3,7 +3,7 @@
 import time
 from unittest.mock import Mock
 
-from x402.mechanisms.hypercore import NETWORK_MAINNET, NETWORK_TESTNET
+from x402.mechanisms.hypercore import NETWORK_MAINNET, NETWORK_TESTNET, SIGNATURE_CHAIN_ID_MAINNET, SIGNATURE_CHAIN_ID_TESTNET
 from x402.mechanisms.hypercore.exact import ExactHypercoreClientScheme
 from x402.schemas import PaymentRequirements
 
@@ -35,6 +35,7 @@ def make_requirements(**overrides):
         "amount": "1000000",
         "asset": "USDH:0x54e00a5988577cb0b0c9ab0cb6ef7f4b",
         "max_timeout_seconds": 3600,
+        "extra": {},
     }
     defaults.update(overrides)
     return PaymentRequirements(**defaults)
@@ -164,10 +165,31 @@ class TestCreatePaymentPayload:
         action = result["action"]
         assert action["type"] == "sendAsset"
         assert action["hyperliquidChain"] == "Mainnet"
+        assert action["signatureChainId"] == SIGNATURE_CHAIN_ID_MAINNET
         assert action["sourceDex"] == "spot"
         assert action["destinationDex"] == "spot"
         assert action["fromSubAccount"] == ""
         assert "nonce" in action
+
+    def test_should_set_mainnet_signature_chain_id(self):
+        """Should set signatureChainId to 0x3e7 for mainnet."""
+        signer = MockSigner()
+        client = ExactHypercoreClientScheme(signer)
+
+        result = client.create_payment_payload(make_requirements())
+
+        assert result["action"]["signatureChainId"] == "0x3e7"
+
+    def test_should_set_testnet_signature_chain_id(self):
+        """Should set signatureChainId to 0x3e6 for testnet."""
+        signer = MockSigner()
+        client = ExactHypercoreClientScheme(signer)
+
+        result = client.create_payment_payload(
+            make_requirements(network=NETWORK_TESTNET, extra={"isMainnet": False})
+        )
+
+        assert result["action"]["signatureChainId"] == "0x3e6"
 
     def test_should_read_destination_dex_from_extra(self):
         """Should read destinationDex from requirements.extra."""

@@ -15,8 +15,11 @@ from x402.mechanisms.hypercore import (
     MAX_NONCE_AGE_SECONDS,
     NETWORK_CONFIGS,
     NETWORK_MAINNET,
+    NETWORK_SIGNATURE_CHAIN_IDS,
     NETWORK_TESTNET,
     SCHEME_EXACT,
+    SIGNATURE_CHAIN_ID_MAINNET,
+    SIGNATURE_CHAIN_ID_TESTNET,
     AssetInfo,
     NetworkConfig,
 )
@@ -63,6 +66,13 @@ class TestPackageImports:
         testnet_config = NETWORK_CONFIGS[NETWORK_TESTNET]
         assert testnet_config["default_asset"]["token"] == "USDH:0x471fd4480bb9943a1fe080ab0d4ff36c"
         assert testnet_config["default_asset"]["decimals"] == 8
+
+    def test_should_import_signature_chain_id_constants(self):
+        """Should import signature chain ID constants."""
+        assert SIGNATURE_CHAIN_ID_MAINNET == "0x3e7"
+        assert SIGNATURE_CHAIN_ID_TESTNET == "0x3e6"
+        assert NETWORK_SIGNATURE_CHAIN_IDS[NETWORK_MAINNET] == SIGNATURE_CHAIN_ID_MAINNET
+        assert NETWORK_SIGNATURE_CHAIN_IDS[NETWORK_TESTNET] == SIGNATURE_CHAIN_ID_TESTNET
 
     def test_should_import_error_constants(self):
         """Should import all error constants."""
